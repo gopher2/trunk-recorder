@@ -165,6 +165,9 @@ public:
   virtual bool get_hideEncrypted() = 0;
   virtual void set_hideEncrypted(bool hideEncrypted) = 0;
 
+  virtual bool get_recordEncrypted() = 0;
+  virtual void set_recordEncrypted(bool recordEncrypted) = 0;
+
   virtual bool get_hideUnknown() = 0;
   virtual void set_hideUnknown(bool hideUnknown) = 0;
 

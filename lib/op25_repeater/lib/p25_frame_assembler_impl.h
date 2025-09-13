@@ -90,6 +90,10 @@ public:
 
       void clear_silence_frame_count();
       void clear();
+      void set_raw_capture_config(bool enabled, const char* raw_dir);
+      void start_raw_capture(long talkgroup, const char* short_name, long call_num = 0, double freq = 0.0);
+      void stop_raw_capture();
+      std::pair<long, time_t> get_raw_capture_info();
       log_ts logts;
     };
 

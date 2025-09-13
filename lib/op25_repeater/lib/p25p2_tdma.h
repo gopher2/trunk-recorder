@@ -61,6 +61,12 @@ public:
 	void reset_call_terminated();
 	long get_ptt_src_id();
 	long get_ptt_grp_id();
+	
+	// Raw P25 frame capture methods (placeholders for now)
+	void set_raw_capture_config(bool enabled, const char* raw_dir) {}
+	void start_raw_capture(long talkgroup, const char* short_name, long call_num = 0, double freq = 0.0) {}
+	void stop_raw_capture() {}
+	
 private:
 	p25p2_sync sync;
 	p25p2_duid duid;

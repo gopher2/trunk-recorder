@@ -45,6 +45,11 @@ struct Config {
   bool soft_vocoder;
   bool record_uu_v_calls;
   int frequency_format;
+  bool save_wav;
+  bool save_m4a;
+  bool save_p25;
+  bool save_json;
+  std::string p25_capture_mode;
 };
 
 struct Call_Source {
@@ -116,9 +121,10 @@ struct Call_Data_t {
   bool transmission_archive;
   bool call_log;
   bool compress_wav;
-  char filename[300];
-  char status_filename[300];
-  char converted[300];
+  char filename[300];        // WAV file path
+  char status_filename[300]; // JSON file path  
+  char converted[300];       // M4A file path
+  char p25_filename[300];    // P25 file path
   int min_transmissions_removed;
 
   int sys_num;
@@ -140,6 +146,7 @@ struct Call_Data_t {
 
   std::vector<int> plugin_retry_list;
   nlohmann::ordered_json call_json;
+  Config config;
 };
 
 #endif

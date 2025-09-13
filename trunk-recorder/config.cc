@@ -174,6 +174,18 @@ bool load_config(string config_file, Config &config, gr::top_block_sptr &tb, std
     }
 
     BOOST_LOG_TRIVIAL(info) << "Capture Directory: " << config.capture_dir;
+
+    config.save_wav = data.value("saveWav", true);
+    BOOST_LOG_TRIVIAL(info) << "Save WAV: " << config.save_wav;
+    config.save_m4a = data.value("saveM4a", false);
+    BOOST_LOG_TRIVIAL(info) << "Save M4A: " << config.save_m4a;
+    config.save_p25 = data.value("saveP25", false);
+    BOOST_LOG_TRIVIAL(info) << "Save P25: " << config.save_p25;
+    config.save_json = data.value("saveJson", true);
+    BOOST_LOG_TRIVIAL(info) << "Save JSON: " << config.save_json;
+    config.p25_capture_mode = data.value("p25CaptureMode", "voice");
+    BOOST_LOG_TRIVIAL(info) << "P25 Capture Mode: " << config.p25_capture_mode;
+
     config.upload_server = data.value("uploadServer", "");
     BOOST_LOG_TRIVIAL(info) << "Upload Server: " << config.upload_server;
     config.bcfy_calls_server = data.value("broadcastifyCallsServer", "");
@@ -406,6 +418,8 @@ bool load_config(string config_file, Config &config, gr::top_block_sptr &tb, std
 
         system->set_hideEncrypted(element.value("hideEncrypted", system->get_hideEncrypted()));
         BOOST_LOG_TRIVIAL(info) << "Hide Encrypted Talkgroups: " << system->get_hideEncrypted();
+        system->set_recordEncrypted(element.value("recordEncrypted", system->get_recordEncrypted()));
+        BOOST_LOG_TRIVIAL(info) << "Record Encrypted Talkgroups: " << system->get_recordEncrypted();
         system->set_hideUnknown(element.value("hideUnknownTalkgroups", system->get_hideUnknown()));
         BOOST_LOG_TRIVIAL(info) << "Hide Unknown Talkgroups: " << system->get_hideUnknown();
         system->set_min_duration(element.value("minDuration", 0.0));

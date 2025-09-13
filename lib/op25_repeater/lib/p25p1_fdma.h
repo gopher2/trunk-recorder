@@ -78,6 +78,14 @@ namespace gr {
                 int d_debug;
                 bool d_do_imbe;
                 bool d_do_output;
+                
+                // Raw P25 frame capture
+                bool d_save_raw_capture;
+                std::string d_raw_capture_dir;
+                FILE* d_raw_fp;
+                long d_current_talkgroup;
+                time_t d_raw_start_time;
+                std::string d_current_short_name;
                 bool d_do_msgq;
                 int  d_msgq_id;
                 bool d_do_audio_output;
@@ -141,6 +149,12 @@ namespace gr {
                 void reset_call_terminated();
                 Rx_Status get_rx_status();
                 void clear();
+                
+                // Raw P25 frame capture methods
+                void set_raw_capture_config(bool enabled, const char* raw_dir);
+                void start_raw_capture(long talkgroup, const char* short_name, long call_num = 0, double freq = 0.0);
+                void stop_raw_capture();
+                std::pair<long, time_t> get_raw_capture_info();
 
         };
     } // namespace

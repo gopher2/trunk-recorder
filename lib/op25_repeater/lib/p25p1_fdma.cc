@@ -40,6 +40,7 @@
 #include "rs.h"
 #include "p25_crypt_algs.h"
 #include "imbe_vocoder/imbe_vocoder.h"
+#include <boost/filesystem.hpp>
 
 namespace gr {
     namespace op25_repeater {
@@ -203,6 +204,12 @@ namespace gr {
             d_debug(debug),
             d_do_imbe(do_imbe),
             d_do_output(do_output),
+            d_save_raw_capture(false),
+            d_raw_capture_dir(""),
+            d_raw_fp(nullptr),
+            d_current_talkgroup(0),
+            d_raw_start_time(0),
+            d_current_short_name(""),
             d_do_msgq(do_msgq),
             d_msgq_id(msgq_id),
             d_do_audio_output(do_audio_output),
@@ -266,6 +273,7 @@ namespace gr {
 		}
 
         void p25p1_fdma::process_duid(uint32_t const duid, uint32_t const nac, const uint8_t* buf, const int len) {
+            
             char wbuf[256];
             int p = 0;
             if (!d_do_msgq)
@@ -277,6 +285,23 @@ namespace gr {
                 memcpy(&wbuf[p], buf, len);	// copy data
                 p += len;
             }
+            
+            // Raw P25 frame capture
+            if (d_save_raw_capture && d_raw_fp && buf && len > 0) {
+                // Write a simple frame header: DUID (1 byte) + NAC (2 bytes) + Length (2 bytes) + Data
+                uint8_t frame_header[5];
+                frame_header[0] = duid & 0xff;
+                frame_header[1] = (nac >> 8) & 0xff;
+                frame_header[2] = nac & 0xff;
+                frame_header[3] = (len >> 8) & 0xff;
+                frame_header[4] = len & 0xff;
+                
+                fwrite(frame_header, 1, 5, d_raw_fp);
+                fwrite(buf, 1, len, d_raw_fp);
+                fflush(d_raw_fp);  // Ensure data is written immediately
+                
+            }
+            
             send_msg(std::string(wbuf, p), duid);
             qtimer.reset();
         }
@@ -346,6 +371,30 @@ namespace gr {
                 fprintf (stderr, "%s NAC 0x%03x LDU1: ", logts.get(d_msgq_id), framer->nac);
             }
 
+            // Raw P25 frame capture for LDU1
+            if (d_save_raw_capture && d_raw_fp) {
+                // Convert bit_vector to bytes and write to raw file
+                std::vector<uint8_t> frame_bytes((A.size() + 7) / 8, 0);
+                for (size_t i = 0; i < A.size(); i++) {
+                    if (A[i]) {
+                        frame_bytes[i / 8] |= (1 << (7 - (i % 8)));
+                    }
+                }
+                
+                // Write frame header: DUID (1 byte) + NAC (2 bytes) + Length (2 bytes) + Data
+                uint8_t frame_header[5];
+                frame_header[0] = 0x05; // LDU1 DUID
+                frame_header[1] = (framer->nac >> 8) & 0xff;
+                frame_header[2] = framer->nac & 0xff;
+                frame_header[3] = (frame_bytes.size() >> 8) & 0xff;
+                frame_header[4] = frame_bytes.size() & 0xff;
+                
+                fwrite(frame_header, 1, 5, d_raw_fp);
+                fwrite(frame_bytes.data(), 1, frame_bytes.size(), d_raw_fp);
+                fflush(d_raw_fp);
+                
+            }
+
             std::vector<uint8_t> HB(63,0); // hexbit vector
             process_LLDU(A, HB);
             process_LCW(HB);
@@ -365,6 +414,30 @@ namespace gr {
 
             if (d_debug >= 10) {
                 fprintf (stderr, "%s NAC 0x%03x LDU2: ", logts.get(d_msgq_id), framer->nac);
+            }
+
+            // Raw P25 frame capture for LDU2
+            if (d_save_raw_capture && d_raw_fp) {
+                // Convert bit_vector to bytes and write to raw file
+                std::vector<uint8_t> frame_bytes((A.size() + 7) / 8, 0);
+                for (size_t i = 0; i < A.size(); i++) {
+                    if (A[i]) {
+                        frame_bytes[i / 8] |= (1 << (7 - (i % 8)));
+                    }
+                }
+                
+                // Write frame header: DUID (1 byte) + NAC (2 bytes) + Length (2 bytes) + Data
+                uint8_t frame_header[5];
+                frame_header[0] = 0x0A; // LDU2 DUID
+                frame_header[1] = (framer->nac >> 8) & 0xff;
+                frame_header[2] = framer->nac & 0xff;
+                frame_header[3] = (frame_bytes.size() >> 8) & 0xff;
+                frame_header[4] = frame_bytes.size() & 0xff;
+                
+                fwrite(frame_header, 1, 5, d_raw_fp);
+                fwrite(frame_bytes.data(), 1, frame_bytes.size(), d_raw_fp);
+                fflush(d_raw_fp);
+                
             }
 
             std::vector<uint8_t> HB(63,0); // hexbit vector
@@ -907,6 +980,84 @@ namespace gr {
                         d_msg_queue->insert_tail(msg);
                 }
             }
+        }
+        
+        void p25p1_fdma::set_raw_capture_config(bool enabled, const char* raw_dir) {
+            d_save_raw_capture = enabled;
+            if (raw_dir) {
+                d_raw_capture_dir = std::string(raw_dir);
+            } else {
+                d_raw_capture_dir = "";
+            }
+        }
+        
+        void p25p1_fdma::start_raw_capture(long talkgroup, const char* short_name, long call_num, double freq) {
+            if (!d_save_raw_capture) {
+                return;
+            }
+            
+            d_current_talkgroup = talkgroup;
+            if (short_name) {
+                d_current_short_name = std::string(short_name);
+            } else {
+                d_current_short_name = "unknown";
+            }
+            d_raw_start_time = time(NULL);
+            
+            // Create date-organized directory structure matching audio files
+            tm *ltm = localtime(&d_raw_start_time);
+            std::stringstream path_stream;
+            path_stream << d_raw_capture_dir << "/" << d_current_short_name 
+                        << "/" << 1900 + ltm->tm_year << "/" << 1 + ltm->tm_mon << "/" << ltm->tm_mday;
+            std::string path_string = path_stream.str();
+            
+            // Create directory using boost filesystem
+            try {
+                boost::filesystem::create_directories(path_string);
+            } catch (const std::exception& e) {
+                if (d_debug >= 1)
+                    fprintf(stderr, "%s p25p1_fdma: Failed to create directory %s: %s\n", 
+                            logts.get(d_msgq_id), path_string.c_str(), e.what());
+                return;
+            }
+            
+            // Create filename with proper format: talkgroup-timestamp_frequency-call_X.p25
+            char raw_filename[512];
+            int nchars;
+            if (call_num > 0 && freq > 0.0) {
+                nchars = snprintf(raw_filename, 512, "%s/%ld-%ld_%.1f-call_%ld.p25", 
+                                  path_string.c_str(), talkgroup, d_raw_start_time, freq, call_num);
+            } else {
+                // Fallback to old format if call info not available
+                nchars = snprintf(raw_filename, 512, "%s/%ld-%ld.p25", 
+                                  path_string.c_str(), talkgroup, d_raw_start_time);
+            }
+            
+            if (nchars >= 512) {
+                if (d_debug >= 1)
+                    fprintf(stderr, "%s p25p1_fdma: Raw capture filename too long\n", logts.get(d_msgq_id));
+                return;
+            }
+            
+            d_raw_fp = fopen(raw_filename, "wb");
+            if (!d_raw_fp) {
+                if (d_debug >= 1)
+                    fprintf(stderr, "%s p25p1_fdma: Failed to open raw capture file: %s\n", 
+                            logts.get(d_msgq_id), raw_filename);
+                return;
+            }
+            
+        }
+        
+        void p25p1_fdma::stop_raw_capture() {
+            if (d_raw_fp) {
+                fclose(d_raw_fp);
+                d_raw_fp = nullptr;
+            }
+        }
+        
+        std::pair<long, time_t> p25p1_fdma::get_raw_capture_info() {
+            return std::make_pair(d_current_talkgroup, d_raw_start_time);
         }
 
     }  // namespace

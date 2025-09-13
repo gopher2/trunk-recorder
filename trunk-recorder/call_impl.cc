@@ -124,7 +124,7 @@ void Call_impl::conclude_call() {
   // BOOST_LOG_TRIVIAL(info) << "conclude_call()";
   stop_time = time(NULL);
 
-  if (state == RECORDING || (state == MONITORING && monitoringState == SUPERSEDED)) {
+  if (state == RECORDING || (state == MONITORING && (monitoringState == SUPERSEDED || monitoringState == ENCRYPTED))) {
     if (!recorder) {
       BOOST_LOG_TRIVIAL(error) << "Call_impl::end_call() State is recording, but no recorder assigned!";
     } else {

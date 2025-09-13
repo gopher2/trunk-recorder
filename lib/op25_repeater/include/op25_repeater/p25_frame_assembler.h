@@ -64,6 +64,10 @@ namespace gr {
       virtual void set_phase2_tdma(bool p) {}
       virtual void clear() {};
       virtual  void clear_silence_frame_count() {};
+      virtual void set_raw_capture_config(bool enabled, const char* raw_dir) {}
+      virtual void start_raw_capture(long talkgroup, const char* short_name, long call_num = 0, double freq = 0.0) {}
+      virtual void stop_raw_capture() {}
+      virtual std::pair<long, time_t> get_raw_capture_info() { return std::make_pair(0, 0); }
     };
 
   } // namespace op25_repeater

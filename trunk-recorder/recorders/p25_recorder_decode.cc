@@ -2,6 +2,10 @@
 #include "p25_recorder_decode.h"
 #include "../gr_blocks/plugin_wrapper_impl.h"
 #include "../plugin_manager/plugin_manager.h"
+#include <fstream>
+#include <sstream>
+#include <utility>
+#include <boost/filesystem.hpp>
 
 p25_recorder_decode_sptr make_p25_recorder_decode(Recorder *recorder, int silence_frames, bool d_soft_vocoder) {
   p25_recorder_decode *decoder = new p25_recorder_decode(recorder);
@@ -19,8 +23,14 @@ p25_recorder_decode::p25_recorder_decode(Recorder *recorder)
 p25_recorder_decode::~p25_recorder_decode() {
 }
 
+// JSON generation is now handled by the call concluder to include complete metadata
+
 void p25_recorder_decode::stop() {
   wav_sink->stop_recording();
+  
+  // Stop raw P25 frame capture
+  op25_frame_assembler->stop_raw_capture();
+  
   d_call = NULL;
 }
 
@@ -31,6 +41,15 @@ void p25_recorder_decode::start(Call *call) {
     wav_sink->start_recording(call, call->get_tdma_slot());
   } else {
     wav_sink->start_recording(call);
+  }
+  
+  // Configure and start raw P25 frame capture if enabled
+  if (d_recorder && d_recorder->get_source()) {
+    Config *config = d_recorder->get_source()->get_config();
+    if (config && config->save_p25) {
+      op25_frame_assembler->set_raw_capture_config(true, config->capture_dir.c_str());
+      op25_frame_assembler->start_raw_capture(call->get_talkgroup(), call->get_short_name().c_str(), call->get_call_num(), call->get_freq());
+    }
   }
   
   d_call = call;

@@ -51,7 +51,7 @@ int convert_media(char *filename, char *converted, char *date, const char *short
   return nchars;
 }
 
-int create_call_json(Call_Data_t& call_info) {
+int create_call_json(Call_Data_t& call_info, Config& config) {
   // Create call JSON, write it to disk, and pass back a json object to call_info
   
   // Using nlohmann::ordered_json to preserve the previous order
@@ -112,17 +112,22 @@ int create_call_json(Call_Data_t& call_info) {
   // Add created JSON to call_info  
   call_info.call_json = json_data;
 
-  // Output the JSON status file
-  std::ofstream json_file(call_info.status_filename);
-  if (json_file.is_open()) {
-    // Write the JSON to disk, indented 2 spaces per level
-    json_file << json_data.dump(2);
-    return 0;
-  } else {
-    std::string loghdr = log_header( call_info.short_name, call_info.call_num, call_info.talkgroup_display , call_info.freq);
-    BOOST_LOG_TRIVIAL(error) << loghdr << "C\033[0m \t Unable to create JSON file: " << call_info.status_filename;
-    return 1;
+  // Only create JSON file if enabled in config
+  if (config.save_json) {
+    std::ofstream json_file(call_info.status_filename);
+    if (json_file.is_open()) {
+      // Write the JSON to disk, indented 2 spaces per level
+      std::string json_string = json_data.dump(2);
+      json_file << json_string;
+      json_file.close();
+      return 0;
+    } else {
+      std::string loghdr = log_header( call_info.short_name, call_info.call_num, call_info.talkgroup_display , call_info.freq);
+      BOOST_LOG_TRIVIAL(error) << loghdr << "C\033[0m \t Unable to create JSON file: " << call_info.status_filename;
+      return 1;
+    }
   }
+  return 0;
 }
 
 bool checkIfFile(std::string filePath) {
@@ -220,16 +225,19 @@ Call_Data_t upload_call_worker(Call_Data_t call_info) {
       }
     }
 
-    combine_wav(files, call_info.filename);
+    // Only create WAV file if enabled in config
+    if (call_info.config.save_wav) {
+      combine_wav(files, call_info.filename);
+    }
 
-    result = create_call_json(call_info);
+    result = create_call_json(call_info, call_info.config);
 
     if (result < 0) {
       call_info.status = FAILED;
       return call_info;
     }
 
-    if (call_info.compress_wav) {
+    if (call_info.compress_wav && call_info.config.save_m4a) {
       // TR records files as .wav files. They need to be compressed before being upload to online services.
 
       char *talkgroup_title;
@@ -299,6 +307,7 @@ Call_Data_t Call_Concluder::create_base_filename(Call *call, Call_Data_t call_in
   snprintf(call_info.filename, 300, "%s-call_%lu.wav", base_filename, call->get_call_num());
   snprintf(call_info.status_filename, 300, "%s-call_%lu.json", base_filename, call->get_call_num());
   snprintf(call_info.converted, 300, "%s-call_%lu.m4a", base_filename, call->get_call_num());
+  snprintf(call_info.p25_filename, 300, "%s-call_%lu.p25", base_filename, call->get_call_num());
 
   return call_info;
 }
@@ -337,6 +346,26 @@ Call_Data_t Call_Concluder::create_call_data(Call *call, System *sys, Config con
   call_info.call_log = sys->get_call_log();
   call_info.call_num = call->get_call_num();
   call_info.compress_wav = sys->get_compress_wav();
+  call_info.start_time = call->get_start_time();
+  // P25 files now use correct naming from the start, no renaming needed
+  // Handle P25 file deletion based on capture mode
+  if (config.save_p25 && config.p25_capture_mode == "voice") {
+    // Check if P25 file is empty (no voice transmissions)
+    if (boost::filesystem::exists(call_info.p25_filename)) {
+      if (boost::filesystem::file_size(call_info.p25_filename) == 0) {
+        remove(call_info.p25_filename);
+        std::string loghdr = log_header( call_info.short_name, call_info.call_num, call_info.talkgroup_display , call_info.freq);
+        BOOST_LOG_TRIVIAL(info) << loghdr << "[DEBUG] P25 FILE DELETED (empty, capture mode: voice): " << call_info.p25_filename;
+      }
+    }
+  } else if (!config.save_p25) {
+    // P25 saving disabled - delete any P25 file that was created
+    if (boost::filesystem::exists(call_info.p25_filename)) {
+      remove(call_info.p25_filename);
+      std::string loghdr = log_header( call_info.short_name, call_info.call_num, call_info.talkgroup_display , call_info.freq);
+      BOOST_LOG_TRIVIAL(info) << loghdr << "[DEBUG] P25 FILE DELETED (saving disabled): " << call_info.p25_filename;
+    }
+  }
   call_info.talkgroup = call->get_talkgroup();
   call_info.talkgroup_display = call->get_talkgroup_display();
   call_info.patched_talkgroups = sys->get_talkgroup_patch(call_info.talkgroup);
@@ -420,6 +449,7 @@ Call_Data_t Call_Concluder::create_call_data(Call *call, System *sys, Config con
   }
 
   call_info.length = total_length;
+  call_info.config = config;
 
   return call_info;
 }

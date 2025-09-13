@@ -93,6 +93,7 @@ System_impl::System_impl(int sys_num) {
   unit_tags = new UnitTags();
   talkgroup_patches = {};
   d_hideEncrypted = false;
+  d_recordEncrypted = false;
   d_hideUnknown = false;
   d_mdc_enabled = false;
   d_fsync_enabled = false;
@@ -533,6 +534,13 @@ bool System_impl::get_hideEncrypted() {
 }
 void System_impl::set_hideEncrypted(bool hideEncrypted) {
   d_hideEncrypted = hideEncrypted;
+}
+
+bool System_impl::get_recordEncrypted() {
+  return d_recordEncrypted;
+}
+void System_impl::set_recordEncrypted(bool recordEncrypted) {
+  d_recordEncrypted = recordEncrypted;
 }
 
 bool System_impl::get_hideUnknown() {

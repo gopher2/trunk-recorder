@@ -228,6 +228,7 @@ void transmission_sink::end_transmission() {
     } else {
       BOOST_LOG_TRIVIAL(error) << "Ending transmission, sample_count is greater than 0 but d_fp is null" << std::endl;
     }
+
     // if an Transmission has ended, send it to Call.
     Transmission transmission;
     transmission.source = curr_src_id;      // Source ID for the Call

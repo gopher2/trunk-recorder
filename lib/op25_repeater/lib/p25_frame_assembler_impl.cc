@@ -294,5 +294,25 @@ p25_frame_assembler_impl::general_work (int noutput_items,
         }
       }
     }
+    
+    void p25_frame_assembler_impl::set_raw_capture_config(bool enabled, const char* raw_dir) {
+        p1fdma.set_raw_capture_config(enabled, raw_dir);
+        p2tdma.set_raw_capture_config(enabled, raw_dir);
+    }
+    
+    void p25_frame_assembler_impl::start_raw_capture(long talkgroup, const char* short_name, long call_num, double freq) {
+        p1fdma.start_raw_capture(talkgroup, short_name, call_num, freq);
+        p2tdma.start_raw_capture(talkgroup, short_name, call_num, freq);
+    }
+    
+    void p25_frame_assembler_impl::stop_raw_capture() {
+        p1fdma.stop_raw_capture();
+        p2tdma.stop_raw_capture();
+    }
+    
+    std::pair<long, time_t> p25_frame_assembler_impl::get_raw_capture_info() {
+        return p1fdma.get_raw_capture_info();
+    }
+    
   } /* namespace op25_repeater */
 } /* namespace gr */
