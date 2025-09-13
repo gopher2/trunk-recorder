@@ -74,9 +74,9 @@ bool start_recorder(Call *call, TrunkMessage message, Config &config, System *sy
         }
         std::string loghdr = log_header( sys->get_short_name(), call->get_call_num(), call->get_talkgroup_display(), call->get_freq());
         if (!source_found) {
-          BOOST_LOG_TRIVIAL(error) << loghdr << "\u001b[31mEncrypted: Not Recording: no source covering Freq\u001b[0m - src: " << unit_id << tag;
+          BOOST_LOG_TRIVIAL(error) << loghdr << "\u001b[31mNot Recording: Encrypted: no source covering Freq\u001b[0m - src: " << unit_id << tag;
         } else {
-          BOOST_LOG_TRIVIAL(info) << loghdr << "\u001b[31mNot Recording: ENCRYPTED\u001b[0m - src: " << unit_id << tag;
+          BOOST_LOG_TRIVIAL(info) << loghdr << "\u001b[31mNot Recording: Encrypted\u001b[0m - src: " << unit_id << tag;
         }
       }
       return false;
