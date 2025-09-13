@@ -50,6 +50,18 @@ bool start_recorder(Call *call, TrunkMessage message, Config &config, System *sy
     call->set_talkgroup_tag("-");
   }
 
+  // Check source coverage first
+  for (vector<Source *>::iterator it = sources.begin(); it != sources.end(); it++) {
+    Source *source = *it;
+
+    if ((source->get_min_hz() <= call->get_freq()) &&
+        (source->get_max_hz() >= call->get_freq())) {
+      source_found = true;
+      break;
+    }
+  }
+
+  // Handle encrypted calls with source coverage awareness
   if (call->get_encrypted() == true || (talkgroup && (talkgroup->mode.compare("E") == 0 || talkgroup->mode.compare("TE") == 0 || talkgroup->mode.compare("DE") == 0))) {
     if (sys->get_recordEncrypted() == false) {
       call->set_state(MONITORING);
@@ -61,11 +73,15 @@ bool start_recorder(Call *call, TrunkMessage message, Config &config, System *sy
           tag = " (\033[0;34m" + tag + "\033[0m)";
         }
         std::string loghdr = log_header( sys->get_short_name(), call->get_call_num(), call->get_talkgroup_display(), call->get_freq());
-        BOOST_LOG_TRIVIAL(info) << loghdr << "\u001b[31mNot Recording: ENCRYPTED\u001b[0m - src: " << unit_id << tag;
+        if (!source_found) {
+          BOOST_LOG_TRIVIAL(error) << loghdr << "\u001b[31mEncrypted: Not Recording: no source covering Freq\u001b[0m - src: " << unit_id << tag;
+        } else {
+          BOOST_LOG_TRIVIAL(info) << loghdr << "\u001b[31mNot Recording: ENCRYPTED\u001b[0m - src: " << unit_id << tag;
+        }
       }
       return false;
     } else {
-      // Log that we're recording encrypted call
+      // Log that we're recording encrypted call (only if source found)
       if (sys->get_hideEncrypted() == false) {
         long unit_id = call->get_current_source_id();
         std::string tag = sys->find_unit_tag(unit_id);
@@ -73,11 +89,19 @@ bool start_recorder(Call *call, TrunkMessage message, Config &config, System *sy
           tag = " (\033[0;34m" + tag + "\033[0m)";
         }
         std::string loghdr = log_header( sys->get_short_name(), call->get_call_num(), call->get_talkgroup_display(), call->get_freq());
-        BOOST_LOG_TRIVIAL(info) << loghdr << "\u001b[33mRecording: ENCRYPTED\u001b[0m - src: " << unit_id << tag;
+        if (!source_found) {
+          BOOST_LOG_TRIVIAL(error) << loghdr << "\u001b[31mEncrypted: Not Recording: no source covering Freq\u001b[0m - src: " << unit_id << tag;
+          call->set_state(MONITORING);
+          call->set_monitoring_state(NO_SOURCE);
+          return false;
+        } else {
+          BOOST_LOG_TRIVIAL(info) << loghdr << "\u001b[33mRecording: ENCRYPTED\u001b[0m - src: " << unit_id << tag;
+        }
       }
     }
   }
 
+  // Process sources for recording setup
   for (vector<Source *>::iterator it = sources.begin(); it != sources.end(); it++) {
     Source *source = *it;
 
