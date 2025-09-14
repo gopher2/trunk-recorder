@@ -1,0 +1,53 @@
+{
+    "ver": 2,
+    "saveWav": false,
+    "saveM4a": false,
+    "saveP25": false,
+    "saveJson": false,
+    "p25CaptureMode": "voice",
+    "plugins": [
+        {
+            "name": "p25_control_streaming",
+            "library": "libp25_control_streaming.so",
+            "enabled": true,
+            "streaming_method": "auto",
+            
+            "udp_endpoint": "192.168.1.100:9999",
+            "udp_packet_size": 1400,
+            "udp_buffer_size": 8192,
+            "enable_sequencing": true,
+            "enable_checksums": true,
+            
+            "library_path": "/usr/local/lib/libtrunk-decoder.so",
+            "library_buffer_size": 8192,
+            "enable_buffering": true,
+            "synchronous_calls": true,
+            
+            "stream_tsbk_messages": true,
+            "stream_raw_bitstream": false,
+            "stream_system_metadata": true,
+            "queue_size_limit": 1000
+        }
+    ],
+    "sources": [
+        {
+            "center": 852525000,
+            "rate": 32000000,
+            "error": 0,
+            "gain": 42,
+            "digitalRecorders": 20,
+            "driver": "usrp",
+            "antenna": "RX2",
+            "modulation": "qpsk"
+        }
+    ],
+    "systems": [
+        {
+            "control_channels": [852075000],
+            "type": "p25",
+            "recordUnknown": true,
+            "recordEncrypted": true,
+            "shortName": "MPSCS"
+        }
+    ]
+}

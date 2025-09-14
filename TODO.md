@@ -1,53 +1,46 @@
 # Trunk-Recorder Development Todo
 
-## Unimplemented Configuration Features
-- [ ] **Implement trunk_decoder plugin with HTTP API support**
-  - Plugin exists in config.api.detroit.json but implementation missing
-  - Add HTTP client for sending P25 data to trunk-decoder API
-  - Support server, auth_token, verify_ssl, compress_data, timeout settings
+## ✅ Configuration Status
+- [x] **trunk_decoder plugin** - Fully implemented with all config options
+- [x] **HTTP API support** - Complete with auth, SSL, compression, timeout
+- [x] **All config.api.detroit.json items** - Already supported
 
-- [ ] **Add plugin configuration support for verify_ssl, compress_data, timeout**
-  - Extend plugin system to handle these HTTP client options
-  - Add SSL certificate verification toggle
-  - Implement data compression for API requests
-  - Add configurable HTTP timeout handling
+## P25 Control Channel Streaming Plugin 
+- [ ] **Create P25 control channel streaming output plugin architecture**
+  - Design plugin structure and interfaces
+  - Support dual streaming methods: UDP + shared library
+  - Focus on control channel data only (not voice)
+  - Plugin-based architecture for modularity
 
-## Raw P25 Bitstream Integration
-- [ ] **Design raw P25 bitstream streaming interface**
-  - Define bitstream data format (bits, symbols, frames)
-  - Design streaming protocol (HTTP API vs shared library)
-  - Specify metadata requirements (frequency, timestamp, system info)
-  - Create bitstream packet structure for transmission
+- [ ] **Design dual streaming methods in plugin: UDP + shared library**
+  - UDP streaming for network/distributed deployments
+  - Shared library calls for local/same-machine deployments
+  - Auto-detection of optimal method based on config
+  - Packet structure and metadata design
 
-- [ ] **Add configuration for raw P25 control channel streaming**
-  - Add enableP25BitstreamStreaming boolean config
-  - Add p25BitstreamIntegrationMethod (api/shared_library)
-  - Add p25BitstreamEndpoint URL configuration
-  - Add authentication and performance settings
+- [ ] **Identify P25 control channel data capture points for plugin integration**
+  - Hook into P25 parser before/during TSBK decoding
+  - Capture raw control channel bitstream with metadata
+  - Determine optimal capture points for minimal overhead
+  - Map to existing plugin API hooks
 
-- [ ] **Identify P25 control channel data capture points in trunk-recorder**
-  - Find where raw P25 bitstream is available before decoding
-  - Locate control channel processing pipeline
-  - Determine best capture point for minimal overhead
-  - Map bitstream to system/site metadata
+- [ ] **Implement UDP control channel bitstream streaming in plugin**
+  - UDP packet structure with sequencing and checksums
+  - Non-blocking transmission with queue management
+  - Error handling and connection management
+  - Performance optimization for real-time streaming
 
-- [ ] **Implement raw P25 bitstream capture from control channel**
-  - Hook into P25 processing before TSBK decoding
-  - Capture raw bitstream with timing and metadata
-  - Buffer and format data for streaming
-  - Add capture enable/disable controls
+- [ ] **Implement shared library control channel streaming in plugin**
+  - Direct function calls to trunk-decoder library
+  - Memory buffer management and zero-copy where possible
+  - Synchronous/asynchronous call modes
+  - Error handling and fallback mechanisms
 
-- [ ] **Create P25 bitstream streaming client (API + shared library modes)**
-  - HTTP API client for POST requests to trunk-decoder
-  - Shared library interface for direct function calls
-  - Queue management and backpressure handling
-  - Error handling and retry logic
-
-- [ ] **Test raw P25 bitstream streaming to trunk-decoder**
-  - End-to-end testing with live P25 signals
-  - Validate bitstream integrity and timing
-  - Performance testing under high load
-  - Integration testing with trunk-decoder API
+- [ ] **Add plugin configuration and testing for control channel streaming**
+  - Plugin configuration schema and validation
+  - Unit tests and integration testing
+  - Performance benchmarking and optimization
+  - Documentation and example configurations
 
 ## Plugin System Enhancements
 - [ ] **Improve plugin configuration validation**
