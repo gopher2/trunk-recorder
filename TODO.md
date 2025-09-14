@@ -67,11 +67,4 @@
 
 ---
 **Status**: ✅ **TRUNK-RECORDER COMPLETE** - P25 control streaming plugin fully implemented and working
-**Next Project**: 🎯 **trunk-decoder** - Implement P25 TSBK packet receiver and protocol analysis engine
-
-## Next Phase: trunk-decoder Development
-- [ ] **Implement P25 TSBK packet receiver** - UDP listener for P25C packets from trunk-recorder  
-- [ ] **Design P25 TSBK packet parsing engine** - Comprehensive protocol analysis and decoding
-- [ ] **Implement real-time P25 event detection** - Emergency activations, unit movements, alerts
-- [ ] **Add P25 protocol logging and analysis** - Detailed logging and forensic capabilities  
-- [ ] **Test end-to-end streaming pipeline** - Verify trunk-recorder → trunk-decoder integration
+**Next Project**: 🎯 **trunk-decoder** - See trunk-decoder/TODO.md for comprehensive development plan
