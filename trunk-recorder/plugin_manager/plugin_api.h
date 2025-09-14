@@ -31,6 +31,7 @@ public:
   virtual int signal(long unitId, const char *signaling_type, gr::blocks::SignalType sig_type, Call *call, System *system, Recorder *recorder) { return 0; };
   virtual int audio_stream(Call *call, Recorder *recorder, int16_t *samples, int sampleCount) { return 0; };
   virtual int trunk_message(std::vector<TrunkMessage> messages, System *system) { return 0; };
+  virtual int p25_tsbk_data(const uint8_t* data, size_t length, uint32_t nac, double frequency, uint64_t timestamp, System *system) { return 0; };
   virtual int call_start(Call *call) { return 0; };
   virtual int call_end(Call_Data_t call_info) { return 0; }; //= 0; //{ BOOST_LOG_TRIVIAL(info) << "plugin_api call_end"; return 0; };
   virtual int calls_active(std::vector<Call *> calls) { return 0; };

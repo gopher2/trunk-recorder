@@ -4,10 +4,13 @@
 #include <arpa/inet.h>
 #include <dlfcn.h>
 #include <chrono>
+#include <iomanip>
 #include <boost/algorithm/string.hpp>
 
 P25ControlStreaming::P25ControlStreaming() 
-    : running(false), sequence_counter(0) {
+    : running(false), sequence_counter(0), packets_sent(0), packets_dropped(0), bytes_sent(0) {
+    start_time = std::chrono::steady_clock::now();
+    last_stats_time = start_time;
 }
 
 P25ControlStreaming::~P25ControlStreaming() {
@@ -68,6 +71,11 @@ int P25ControlStreaming::parse_config(json config_data) {
     config.stream_raw_bitstream = config_data.value("stream_raw_bitstream", false);
     config.stream_system_metadata = config_data.value("stream_system_metadata", true);
     config.queue_size_limit = config_data.value("queue_size_limit", 1000);
+    
+    // Debug Settings
+    config.verbose_debug = config_data.value("verbose_debug", false);
+    config.log_packet_details = config_data.value("log_packet_details", false);
+    config.log_performance_stats = config_data.value("log_performance_stats", false);
     
     BOOST_LOG_TRIVIAL(info) << "[p25_control_streaming] Configuration loaded:";
     BOOST_LOG_TRIVIAL(info) << "  Method: " << (config.method == StreamingMethod::UDP_NETWORK ? "UDP" : 
@@ -141,15 +149,78 @@ int P25ControlStreaming::stop() {
     return 0;
 }
 
+void P25ControlStreaming::log_packet_info(const P25ControlPacket& packet) {
+    if (config.verbose_debug || config.log_packet_details) {
+        BOOST_LOG_TRIVIAL(info) << "[p25_control_streaming] Packet Info:";
+        BOOST_LOG_TRIVIAL(info) << "  Magic: 0x" << std::hex << packet.magic;
+        BOOST_LOG_TRIVIAL(info) << "  Version: " << std::dec << packet.version;
+        BOOST_LOG_TRIVIAL(info) << "  Sequence: " << packet.sequence_number;
+        BOOST_LOG_TRIVIAL(info) << "  System ID: " << packet.system_id;
+        BOOST_LOG_TRIVIAL(info) << "  Site ID: " << packet.site_id;
+        BOOST_LOG_TRIVIAL(info) << "  Frequency: " << packet.frequency << " Hz";
+        BOOST_LOG_TRIVIAL(info) << "  Data Length: " << packet.data_length;
+        BOOST_LOG_TRIVIAL(info) << "  Checksum: 0x" << std::hex << packet.checksum;
+        BOOST_LOG_TRIVIAL(info) << "  Timestamp: " << std::dec << packet.timestamp_us << " μs";
+    }
+}
+
+void P25ControlStreaming::log_performance_stats() {
+    if (!config.log_performance_stats) {
+        return;
+    }
+    
+    auto current_time = std::chrono::steady_clock::now();
+    auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(current_time - start_time);
+    auto stats_interval = std::chrono::duration_cast<std::chrono::seconds>(current_time - last_stats_time);
+    
+    if (stats_interval.count() >= 60) { // Log stats every minute
+        uint64_t sent = packets_sent.load();
+        uint64_t dropped = packets_dropped.load();
+        uint64_t bytes = bytes_sent.load();
+        
+        BOOST_LOG_TRIVIAL(info) << "[p25_control_streaming] Performance Stats:";
+        BOOST_LOG_TRIVIAL(info) << "  Runtime: " << elapsed.count() << " seconds";
+        BOOST_LOG_TRIVIAL(info) << "  Packets Sent: " << sent;
+        BOOST_LOG_TRIVIAL(info) << "  Packets Dropped: " << dropped;
+        BOOST_LOG_TRIVIAL(info) << "  Bytes Sent: " << bytes;
+        BOOST_LOG_TRIVIAL(info) << "  Drop Rate: " << (sent > 0 ? (double)dropped / sent * 100.0 : 0.0) << "%";
+        BOOST_LOG_TRIVIAL(info) << "  Throughput: " << (elapsed.count() > 0 ? bytes / elapsed.count() : 0) << " bytes/sec";
+        
+        last_stats_time = current_time;
+    }
+}
+
+void P25ControlStreaming::reset_statistics() {
+    packets_sent = 0;
+    packets_dropped = 0;
+    bytes_sent = 0;
+    start_time = std::chrono::steady_clock::now();
+    last_stats_time = start_time;
+    
+    if (config.verbose_debug) {
+        BOOST_LOG_TRIVIAL(info) << "[p25_control_streaming] Statistics reset";
+    }
+}
+
 int P25ControlStreaming::stream_tsbk_data(const uint8_t* data, size_t length, 
                                          uint32_t system_id, double frequency, uint64_t timestamp) {
     if (!config.enabled || !running.load() || !config.stream_tsbk_messages) {
         return 0;
     }
     
+    if (config.verbose_debug) {
+        BOOST_LOG_TRIVIAL(debug) << "[p25_control_streaming] Streaming TSBK data: " 
+                                 << length << " bytes, system=0x" << std::hex << system_id << ", freq=" << std::dec << frequency;
+    }
+    
     if (config.method == StreamingMethod::SHARED_LIBRARY && library_streamer) {
         // Direct library call
-        return library_streamer->send_data(data, length, system_id, frequency, timestamp);
+        int result = library_streamer->send_data(data, length, system_id, frequency, timestamp);
+        if (result == 0) {
+            packets_sent++;
+            bytes_sent += length;
+        }
+        return result;
         
     } else if (config.method == StreamingMethod::UDP_NETWORK) {
         // Queue for UDP transmission
@@ -165,18 +236,62 @@ int P25ControlStreaming::stream_tsbk_data(const uint8_t* data, size_t length,
         packet.data_length = static_cast<uint16_t>(length);
         packet.checksum = config.enable_checksums ? calculate_checksum(data, length) : 0;
         
+        if (config.log_packet_details) {
+            log_packet_info(packet);
+        }
+        
         // Queue the packet for background transmission
         {
             std::lock_guard<std::mutex> lock(queue_mutex);
             if (packet_queue.size() >= config.queue_size_limit) {
-                BOOST_LOG_TRIVIAL(warning) << "[p25_control_streaming] Queue full, dropping packet";
+                packets_dropped++;
+                if (config.verbose_debug) {
+                    BOOST_LOG_TRIVIAL(warning) << "[p25_control_streaming] Queue full, dropping packet (dropped: " 
+                                               << packets_dropped.load() << ")";
+                }
                 return -1;
             }
             packet_queue.push(packet);
         }
         queue_cv.notify_one();
+        
+        // Update statistics
+        packets_sent++;
+        bytes_sent += sizeof(P25ControlPacket) + length;
+        
+        // Periodic performance logging
+        log_performance_stats();
     }
     
+    return 0;
+}
+
+int P25ControlStreaming::p25_tsbk_data(const uint8_t* data, size_t length, uint32_t nac, double frequency, uint64_t timestamp, System *system) {
+    if (!config.enabled || !running.load()) {
+        return 0;
+    }
+    
+    if (config.verbose_debug) {
+        BOOST_LOG_TRIVIAL(debug) << "[p25_control_streaming] Received P25 TSBK data: " 
+                                 << length << " bytes, NAC=0x" << std::hex << nac 
+                                 << ", freq=" << std::dec << frequency;
+    }
+    
+    // Convert NAC to system ID and call our internal streaming method
+    return stream_tsbk_data(data, length, nac, frequency, timestamp);
+}
+
+int P25ControlStreaming::stream_control_metadata(uint32_t system_id, const std::string& metadata) {
+    if (!config.enabled || !running.load() || !config.stream_system_metadata) {
+        return 0;
+    }
+    
+    if (config.verbose_debug) {
+        BOOST_LOG_TRIVIAL(debug) << "[p25_control_streaming] Streaming metadata for system " 
+                                 << system_id << ": " << metadata;
+    }
+    
+    // For now, just log the metadata. Could be extended to send structured data
     return 0;
 }
 
@@ -203,7 +318,9 @@ uint16_t P25ControlStreaming::calculate_checksum(const uint8_t* data, size_t len
 }
 
 void P25ControlStreaming::streaming_worker() {
-    BOOST_LOG_TRIVIAL(info) << "[p25_control_streaming] UDP streaming worker started";
+    if (config.verbose_debug) {
+        BOOST_LOG_TRIVIAL(info) << "[p25_control_streaming] UDP streaming worker started";
+    }
     
     while (running.load()) {
         std::unique_lock<std::mutex> lock(queue_mutex);
@@ -219,14 +336,20 @@ void P25ControlStreaming::streaming_worker() {
             
             // Send the packet via UDP
             if (udp_streamer) {
-                udp_streamer->send_packet(packet);
+                int result = udp_streamer->send_packet(packet);
+                if (result != 0 && config.verbose_debug) {
+                    BOOST_LOG_TRIVIAL(error) << "[p25_control_streaming] Failed to send UDP packet, seq=" 
+                                             << packet.sequence_number;
+                }
             }
             
             lock.lock();
         }
     }
     
-    BOOST_LOG_TRIVIAL(info) << "[p25_control_streaming] UDP streaming worker stopped";
+    if (config.verbose_debug) {
+        BOOST_LOG_TRIVIAL(info) << "[p25_control_streaming] UDP streaming worker stopped";
+    }
 }
 
 boost::shared_ptr<P25ControlStreaming> P25ControlStreaming::create() {

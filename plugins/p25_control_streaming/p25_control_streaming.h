@@ -13,6 +13,9 @@
 #include <queue>
 #include <mutex>
 #include <condition_variable>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 
 // Streaming methods
 enum class StreamingMethod {
@@ -61,6 +64,11 @@ struct P25ControlConfig {
     bool stream_raw_bitstream;
     bool stream_system_metadata;
     int queue_size_limit;
+    
+    // Debug Settings
+    bool verbose_debug;
+    bool log_packet_details;
+    bool log_performance_stats;
 };
 
 // Forward declarations
@@ -72,6 +80,13 @@ private:
     P25ControlConfig config;
     std::atomic<bool> running;
     std::atomic<uint32_t> sequence_counter;
+    
+    // Statistics tracking
+    std::atomic<uint64_t> packets_sent;
+    std::atomic<uint64_t> packets_dropped;
+    std::atomic<uint64_t> bytes_sent;
+    std::chrono::steady_clock::time_point start_time;
+    std::chrono::steady_clock::time_point last_stats_time;
     
     // Streaming implementations
     std::unique_ptr<UDPStreamer> udp_streamer;
@@ -87,6 +102,9 @@ private:
     StreamingMethod detect_streaming_method();
     uint16_t calculate_checksum(const uint8_t* data, size_t length);
     void streaming_worker();
+    void log_packet_info(const P25ControlPacket& packet);
+    void log_performance_stats();
+    void reset_statistics();
     
 public:
     P25ControlStreaming();
@@ -97,6 +115,7 @@ public:
     int parse_config(json config_data) override;
     int start() override;
     int stop() override;
+    int p25_tsbk_data(const uint8_t* data, size_t length, uint32_t nac, double frequency, uint64_t timestamp, System *system) override;
     
     // P25 data streaming methods
     int stream_tsbk_data(const uint8_t* data, size_t length, 

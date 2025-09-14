@@ -1,5 +1,7 @@
 #include "p25_parser.h"
 #include "../formatter.h"
+#include "../plugin_manager/plugin_manager.h"
+#include <chrono>
 
 using namespace csv;
 
@@ -1131,6 +1133,12 @@ std::vector<TrunkMessage> P25Parser::parse_message(gr::message::sptr msg, System
       }
     }
     b <<= 16; // for missing crc
+
+    // Stream raw TSBK data to plugins before parsing
+    uint64_t timestamp = std::chrono::duration_cast<std::chrono::microseconds>(
+        std::chrono::system_clock::now().time_since_epoch()).count();
+    plugman_p25_tsbk_data((const uint8_t*)s.c_str(), s.length(), nac, 
+                          system->get_current_control_channel(), timestamp, system);
 
     return decode_tsbk(b, nac, sys_num);
   } else if (type == 12) { // # trunk: MBT

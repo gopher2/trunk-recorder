@@ -34,6 +34,7 @@ void plugman_poll_one();
 void plugman_audio_callback(Call *call, Recorder *recorder, int16_t *samples, int sampleCount);
 int plugman_signal(long unitId, const char *signaling_type, gr::blocks::SignalType sig_type, Call *call, System *system, Recorder *recorder);
 int plugman_trunk_message(std::vector<TrunkMessage> messages, System *system);
+int plugman_p25_tsbk_data(const uint8_t* data, size_t length, uint32_t nac, double frequency, uint64_t timestamp, System *system);
 int plugman_call_start(Call *call);
 int plugman_call_end(Call_Data_t& call_info);
 int plugman_calls_active(std::vector<Call *> calls);

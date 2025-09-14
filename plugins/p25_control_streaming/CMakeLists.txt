@@ -1,11 +1,3 @@
-cmake_minimum_required(VERSION 3.12)
-
-# Plugin name
-set(PLUGIN_NAME p25_control_streaming)
-
-# Find required packages
-find_package(Boost REQUIRED COMPONENTS system filesystem log)
-
 # Plugin source files
 set(PLUGIN_SOURCES
     p25_control_streaming.cc
@@ -14,37 +6,17 @@ set(PLUGIN_SOURCES
 )
 
 # Create shared library
-add_library(${PLUGIN_NAME} SHARED ${PLUGIN_SOURCES})
-
-# Set library properties
-set_target_properties(${PLUGIN_NAME} PROPERTIES
-    PREFIX "lib"
-    SUFFIX ".so"
-)
-
-# Include directories
-target_include_directories(${PLUGIN_NAME} PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}
-    ${Boost_INCLUDE_DIRS}
-)
+add_library(p25_control_streaming MODULE ${PLUGIN_SOURCES})
 
 # Link libraries
-target_link_libraries(${PLUGIN_NAME}
+target_link_libraries(p25_control_streaming
+    trunk_recorder_library
     ${Boost_LIBRARIES}
     dl
     pthread
-)
-
-# Compiler flags
-target_compile_features(${PLUGIN_NAME} PRIVATE cxx_std_14)
-target_compile_options(${PLUGIN_NAME} PRIVATE
-    -fPIC
-    -Wall
-    -Wextra
+    ${GNURADIO_PMT_LIBRARIES}
+    ${GNURADIO_RUNTIME_LIBRARIES}
 )
 
 # Install target
-install(TARGETS ${PLUGIN_NAME}
-    LIBRARY DESTINATION lib/plugins
-)
+install(TARGETS p25_control_streaming LIBRARY DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/trunk-recorder)

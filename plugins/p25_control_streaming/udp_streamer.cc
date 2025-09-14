@@ -55,8 +55,8 @@ int UDPStreamer::send_packet(const P25ControlPacket& packet) {
     // Copy packet header
     memcpy(buffer.data(), &packet, sizeof(P25ControlPacket));
     
-    // Copy packet data (if any)
-    if (packet.data_length > 0 && packet.control_data) {
+    // Copy packet data (if any) - control_data is a flexible array member
+    if (packet.data_length > 0) {
         memcpy(buffer.data() + sizeof(P25ControlPacket), packet.control_data, packet.data_length);
     }
     
@@ -75,7 +75,6 @@ int UDPStreamer::send_packet(const P25ControlPacket& packet) {
         return -1;
     }
     
-    BOOST_LOG_TRIVIAL(trace) << "[udp_streamer] Sent UDP packet: " << bytes_sent << " bytes, seq=" << packet.sequence_number;
     return 0;
 }
 

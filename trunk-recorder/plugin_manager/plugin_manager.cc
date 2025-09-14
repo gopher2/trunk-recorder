@@ -157,6 +157,17 @@ int plugman_trunk_message(std::vector<TrunkMessage> messages, System *system) {
   return error;
 }
 
+int plugman_p25_tsbk_data(const uint8_t* data, size_t length, uint32_t nac, double frequency, uint64_t timestamp, System *system) {
+  int error = 0;
+  for (std::vector<Plugin *>::iterator it = plugins.begin(); it != plugins.end(); it++) {
+    Plugin *plugin = *it;
+    if (plugin->state == PLUGIN_RUNNING) {
+      plugin->api->p25_tsbk_data(data, length, nac, frequency, timestamp, system);
+    }
+  }
+  return error;
+}
+
 int plugman_call_start(Call *call) {
   int error = 0;
   for (std::vector<Plugin *>::iterator it = plugins.begin(); it != plugins.end(); it++) {

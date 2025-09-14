@@ -1,4 +1,5 @@
 #include "p25_control_streaming.h"
+#include <dlfcn.h>
 
 LibraryStreamer::LibraryStreamer(const std::string& library_path) 
     : library_handle(nullptr), process_control_data(nullptr) {
@@ -41,8 +42,6 @@ int LibraryStreamer::send_data(const uint8_t* data, size_t length,
     
     if (result != 0) {
         BOOST_LOG_TRIVIAL(warning) << "[library_streamer] Library function returned error: " << result;
-    } else {
-        BOOST_LOG_TRIVIAL(trace) << "[library_streamer] Sent " << length << " bytes to library, system=" << system_id;
     }
     
     return result;

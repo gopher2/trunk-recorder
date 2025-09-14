@@ -353,6 +353,7 @@ add_subdirectory(plugins/broadcastify_uploader)
 add_subdirectory(plugins/unit_script)
 add_subdirectory(plugins/rdioscanner_uploader)
 add_subdirectory(plugins/trunk_decoder)
+add_subdirectory(plugins/p25_control_streaming)
 #add_subdirectory(plugins/simplestream)
 
 # Add user plugins located in /user_plugins
