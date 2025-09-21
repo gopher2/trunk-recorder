@@ -61,6 +61,10 @@ endif()
 
 if(APPLE)
    set(CMAKE_MACOSX_RPATH ON)
+   # Set macOS-specific install prefix to /opt/trunk-recorder
+   if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
+       set(CMAKE_INSTALL_PREFIX "/opt/trunk-recorder" CACHE PATH "Install prefix for macOS" FORCE)
+   endif()
 endif()
 set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib/trunk-recorder")
 

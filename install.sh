@@ -13,6 +13,22 @@ if [ ! -d trunk-recorder/recorders ]; then
 fi
 
 pre_reqs() {
+    # Check if running on macOS
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        echo "====== Detected macOS, using Homebrew for dependencies"
+
+        # Check if Homebrew is installed
+        if ! command -v brew &> /dev/null; then
+            echo "====== Homebrew not found. Please install Homebrew first:"
+            echo "====== /bin/bash -c \"\$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\""
+            exit 1
+        fi
+
+        # Install macOS dependencies
+        brew install cmake gnuradio hackrf uhd sox libusb openssl curl boost
+        return
+    fi
+
     PKG_LIST="gnuradio gnuradio-dev gr-osmosdr libhackrf-dev libuhd-dev libgmp-dev"
     PKG_LIST="$PKG_LIST fdkaac sox"
     PKG_LIST="$PKG_LIST git cmake build-essential libboost-all-dev libusb-1.0-0.dev libssl-dev libcurl4-openssl-dev liborc-0.4-dev"
