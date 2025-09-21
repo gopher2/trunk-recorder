@@ -36,7 +36,7 @@ struct P25ControlPacket {
     uint32_t sample_rate;        // Sample rate of data
     uint16_t data_length;        // Length of P25 data
     uint16_t checksum;           // Simple integrity check
-    uint8_t control_data[];      // Variable length P25 control data
+    std::vector<uint8_t> control_data; // P25 control data (changed from flexible array)
 };
 
 // Plugin configuration

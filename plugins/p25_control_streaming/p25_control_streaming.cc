@@ -235,6 +235,9 @@ int P25ControlStreaming::stream_tsbk_data(const uint8_t* data, size_t length,
         packet.sample_rate = 0;  // Not applicable for TSBK data
         packet.data_length = static_cast<uint16_t>(length);
         packet.checksum = config.enable_checksums ? calculate_checksum(data, length) : 0;
+
+        // Copy the actual data into the vector
+        packet.control_data.assign(data, data + length);
         
         if (config.log_packet_details) {
             log_packet_info(packet);

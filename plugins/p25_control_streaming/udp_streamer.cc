@@ -47,17 +47,29 @@ int UDPStreamer::send_packet(const P25ControlPacket& packet) {
     if (socket_fd < 0) {
         return -1;
     }
-    
-    // Create buffer with packet header + data
-    size_t total_size = sizeof(P25ControlPacket) + packet.data_length;
+
+    // Create buffer with fixed header + data
+    size_t header_size = sizeof(uint32_t) * 6 + sizeof(uint64_t) + sizeof(double) + sizeof(uint16_t) * 2;
+    size_t total_size = header_size + packet.data_length;
     std::vector<uint8_t> buffer(total_size);
-    
-    // Copy packet header
-    memcpy(buffer.data(), &packet, sizeof(P25ControlPacket));
-    
-    // Copy packet data (if any) - control_data is a flexible array member
-    if (packet.data_length > 0) {
-        memcpy(buffer.data() + sizeof(P25ControlPacket), packet.control_data, packet.data_length);
+
+    size_t offset = 0;
+
+    // Serialize packet header manually to avoid padding issues
+    memcpy(buffer.data() + offset, &packet.magic, sizeof(uint32_t)); offset += sizeof(uint32_t);
+    memcpy(buffer.data() + offset, &packet.version, sizeof(uint32_t)); offset += sizeof(uint32_t);
+    memcpy(buffer.data() + offset, &packet.timestamp_us, sizeof(uint64_t)); offset += sizeof(uint64_t);
+    memcpy(buffer.data() + offset, &packet.sequence_number, sizeof(uint32_t)); offset += sizeof(uint32_t);
+    memcpy(buffer.data() + offset, &packet.system_id, sizeof(uint32_t)); offset += sizeof(uint32_t);
+    memcpy(buffer.data() + offset, &packet.site_id, sizeof(uint32_t)); offset += sizeof(uint32_t);
+    memcpy(buffer.data() + offset, &packet.frequency, sizeof(double)); offset += sizeof(double);
+    memcpy(buffer.data() + offset, &packet.sample_rate, sizeof(uint32_t)); offset += sizeof(uint32_t);
+    memcpy(buffer.data() + offset, &packet.data_length, sizeof(uint16_t)); offset += sizeof(uint16_t);
+    memcpy(buffer.data() + offset, &packet.checksum, sizeof(uint16_t)); offset += sizeof(uint16_t);
+
+    // Copy packet data from vector
+    if (packet.data_length > 0 && !packet.control_data.empty()) {
+        memcpy(buffer.data() + offset, packet.control_data.data(), packet.data_length);
     }
     
     // Send UDP packet
