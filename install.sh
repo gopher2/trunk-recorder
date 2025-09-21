@@ -24,8 +24,26 @@ pre_reqs() {
             exit 1
         fi
 
-        # Install macOS dependencies
-        brew install cmake gnuradio hackrf uhd sox libusb openssl curl boost
+        # Install macOS dependencies from official documentation
+        brew install gnuradio uhd cmake pkgconfig cppunit openssl fdk-aac-encoder sox pybind11 six boost libusb
+
+        # Install gr-osmosdr from source (following official docs)
+        echo "====== Installing gr-osmosdr from source..."
+        ORIGINAL_DIR=$(pwd)
+        if [ ! -d "/tmp/gr-osmosdr" ]; then
+            cd /tmp
+            git clone git://git.osmocom.org/gr-osmosdr
+            cd gr-osmosdr
+            mkdir build && cd build
+            cmake ..
+            make -j
+            sudo make install
+            sudo update_dyld_shared_cache
+            echo "====== gr-osmosdr installed successfully"
+        else
+            echo "====== gr-osmosdr source directory already exists, skipping build"
+        fi
+        cd "$ORIGINAL_DIR"
         return
     fi
 
@@ -53,7 +71,15 @@ freshen_repo() {
 do_build() {
     mkdir build
     cd build
-    cmake ../
+
+    # Use macOS-specific CMake flags if on macOS
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        echo "====== Building with macOS-specific OpenSSL path"
+        cmake ../ -DOPENSSL_ROOT_DIR=$(brew --prefix openssl@3)
+    else
+        cmake ../
+    fi
+
     make
     cd ..
 }
